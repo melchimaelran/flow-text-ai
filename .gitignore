@@ -1,0 +1,23 @@
+node_modules
+dist
+out
+.env
+*.local
+
+# electron-builder
+dist-electron
+
+# logs
+logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+.vscode
+.idea
+.claude
+about.md
+CLAUDE.md
+TECHNICAL.md
