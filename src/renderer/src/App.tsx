@@ -5,12 +5,12 @@ import { TextPreview } from './components/TextPreview'
 import { ActionButtons } from './components/ActionButtons'
 import { SettingsView } from './components/SettingsView'
 import { MissingDepsView } from './components/MissingDepsView'
-import { ArrowLeft, Settings, Zap } from 'lucide-react'
+import { ArrowLeft, PenLine, Settings, Zap } from 'lucide-react'
 
 type View = 'overlay' | 'settings' | 'missing-deps'
 
 export default function App(): JSX.Element {
-  const { setText, setCustomCommands } = useOverlayStore()
+  const { setText, setCustomCommands, reset, setComposeMode, isComposeMode } = useOverlayStore()
   const [view, setView] = useState<View>('overlay')
   const [ready, setReady] = useState(false)
 
@@ -25,8 +25,16 @@ export default function App(): JSX.Element {
 
     window.api.onInit(({ text }) => {
       setView('overlay')
-      setText(text)
+      if (text.trim()) {
+        setText(text)
+        setComposeMode(false)
+      } else {
+        reset()
+        setComposeMode(true)
+      }
     })
+
+    window.api.onOpenSettings(() => setView('settings'))
 
     const onKeyDown = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') window.api.hideWindow()
@@ -60,13 +68,28 @@ export default function App(): JSX.Element {
               </button>
             )}
             {view === 'overlay' && (
-              <button
-                onClick={() => setView('settings')}
-                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-white/5 transition-all"
-                title="Settings"
-              >
-                <Settings size={13} />
-              </button>
+              <>
+                <button
+                  onClick={() => { reset(); setComposeMode(true) }}
+                  title="Write from scratch"
+                  className={[
+                    'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-95',
+                    isComposeMode
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-900/50'
+                      : 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-sm shadow-indigo-900/40',
+                  ].join(' ')}
+                >
+                  <PenLine size={12} />
+                  New
+                </button>
+                <button
+                  onClick={() => setView('settings')}
+                  className="p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-white/5 transition-all"
+                  title="Settings"
+                >
+                  <Settings size={13} />
+                </button>
+              </>
             )}
             <button
               onClick={() => window.api.hideWindow()}

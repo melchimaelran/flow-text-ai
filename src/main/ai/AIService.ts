@@ -1,4 +1,4 @@
-import OpenAI from 'openai'
+import OpenAI, { toFile } from 'openai'
 import type { ChatMessage } from '../../shared/types'
 
 export class AIService {
@@ -32,5 +32,15 @@ ${originalText}
     })
 
     return response.choices[0]?.message?.content?.trim() ?? originalText
+  }
+
+  async transcribe(audioBuffer: Buffer, mimeType: string): Promise<string> {
+    const ext = mimeType.includes('ogg') ? 'ogg' : mimeType.includes('mp4') ? 'mp4' : 'webm'
+    const file = await toFile(audioBuffer, `recording.${ext}`, { type: mimeType })
+    const transcription = await this.client.audio.transcriptions.create({
+      file,
+      model: 'whisper-large-v3',
+    })
+    return transcription.text.trim()
   }
 }

@@ -10,6 +10,10 @@ import {
   clipboard,
   shell,
   safeStorage,
+  session,
+  Tray,
+  Menu,
+  nativeImage,
 } from "electron";
 import { join } from "path";
 import { execSync, exec } from "child_process";
@@ -19,6 +23,10 @@ import { AIService } from "./ai/AIService";
 import type { ChatMessage, CustomCommand, AppConfig } from "../shared/types";
 
 log.initialize();
+
+// PipeWire support for audio capture on Ubuntu 22+
+app.commandLine.appendSwitch('enable-features', 'WebRTCPipeWireCapturer')
+app.commandLine.appendSwitch('disable-renderer-backgrounding')
 
 function checkXdotool(): boolean {
   try {
@@ -35,6 +43,7 @@ const store = new Store<AppConfig>({
 
 let overlayWindow: BrowserWindow | null = null;
 let targetWindowId: string | null = null;
+let tray: Tray | null = null;
 
 function createOverlayWindow(): void {
   overlayWindow = new BrowserWindow({
@@ -85,6 +94,60 @@ function captureActiveWindow(): string {
   }
 }
 
+function createTray(): void {
+  const iconPath = app.isPackaged
+    ? join(process.resourcesPath, "resources/tray-icon.png")
+    : join(__dirname, "../../resources/tray-icon.png");
+  const icon = nativeImage.createFromPath(iconPath);
+  tray = new Tray(icon);
+  tray.setToolTip("Flow Text AI");
+
+  const menu = Menu.buildFromTemplate([
+    {
+      label: "Flow Text AI",
+      enabled: false,
+    },
+    { type: "separator" },
+    {
+      label: "Show overlay",
+      click: () => {
+        if (overlayWindow) {
+          overlayWindow.webContents.send("overlay:init", { text: "" });
+          const { width: sw, height: sh } =
+            require("electron").screen.getPrimaryDisplay().workAreaSize;
+          const [ww, wh] = overlayWindow.getSize();
+          overlayWindow.setPosition(
+            Math.floor((sw - ww) / 2),
+            Math.floor((sh - wh) / 2),
+          );
+          overlayWindow.show();
+          overlayWindow.focus();
+        }
+      },
+    },
+    {
+      label: "Settings",
+      click: () => {
+        if (overlayWindow) {
+          overlayWindow.webContents.send("tray:openSettings");
+          overlayWindow.show();
+          overlayWindow.focus();
+        }
+      },
+    },
+    { type: "separator" },
+    {
+      label: "Quit",
+      click: () => app.quit(),
+    },
+  ]);
+
+  tray.setContextMenu(menu);
+
+  // Left-click also opens the context menu on Linux
+  tray.on("click", () => tray?.popUpContextMenu());
+}
+
 function showOverlay(): void {
   if (!overlayWindow) return;
 
@@ -104,7 +167,15 @@ function showOverlay(): void {
 }
 
 app.whenReady().then(() => {
+  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+    callback(permission === 'media')
+  })
+  session.defaultSession.setPermissionCheckHandler((_webContents, permission) => {
+    return permission === 'media'
+  })
+
   createOverlayWindow();
+  createTray();
 
   const hotkey = store.get("hotkey");
   globalShortcut.register(hotkey, showOverlay);
@@ -120,9 +191,8 @@ app.on("will-quit", () => {
   globalShortcut.unregisterAll();
 });
 
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
-});
+// Keep app alive in tray even when all windows are closed
+app.on("window-all-closed", () => { /* noop */ });
 
 // ─── API key helpers (safeStorage + migration) ───────────────────────────────
 
@@ -245,4 +315,10 @@ ipcMain.handle("commands:save", (_event, cmd: CustomCommand) => {
 ipcMain.handle("commands:delete", (_event, id: string) => {
   const existing = (store.get("customCommands") ?? []) as CustomCommand[];
   store.set("customCommands", existing.filter((c) => c.id !== id));
+});
+
+ipcMain.handle("audio:transcribe", async (_event, audioData: ArrayBuffer, mimeType: string) => {
+  const apiKey = getStoredApiKey();
+  const ai = new AIService(apiKey);
+  return ai.transcribe(Buffer.from(audioData), mimeType);
 });

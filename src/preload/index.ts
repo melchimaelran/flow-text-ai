@@ -35,4 +35,11 @@ contextBridge.exposeInMainWorld('api', {
 
   deleteCustomCommand: (id: string) =>
     ipcRenderer.invoke('commands:delete', id),
+
+  transcribeAudio: (audioData: ArrayBuffer, mimeType: string) =>
+    ipcRenderer.invoke('audio:transcribe', audioData, mimeType),
+
+  onOpenSettings: (callback: () => void) => {
+    ipcRenderer.on('tray:openSettings', () => callback())
+  },
 })

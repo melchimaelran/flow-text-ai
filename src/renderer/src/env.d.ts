@@ -20,6 +20,8 @@ declare global {
       listCustomCommands: () => Promise<CustomCommand[]>;
       saveCustomCommand: (cmd: CustomCommand) => Promise<void>;
       deleteCustomCommand: (id: string) => Promise<void>;
+      transcribeAudio: (audioData: ArrayBuffer, mimeType: string) => Promise<string>;
+      onOpenSettings: (callback: () => void) => void;
     };
   }
 }

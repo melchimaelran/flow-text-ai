@@ -4,6 +4,7 @@ import { Send } from 'lucide-react'
 import { useOverlayStore } from '../store/overlayStore'
 import type { Command } from '../../../shared/types'
 import { detectCommand, buildInstruction, buildApiHistory } from '../lib/commands'
+import { MicButton } from './MicButton'
 
 /* ─── Built-in command registry ─────────────────────────────────────────── */
 
@@ -79,10 +80,14 @@ export function CommandBar(): JSX.Element {
     isLoading,
     activeCommand,
     customCommands,
+    isComposeMode,
+    composeDraft,
     setActiveCommand,
     setLoading,
     setError,
     addMessage,
+    setText,
+    setComposeMode,
   } = useOverlayStore()
 
   const customSuggestions = useMemo<Suggestion[]>(
@@ -90,7 +95,7 @@ export function CommandBar(): JSX.Element {
     [customCommands]
   )
 
-  const hasText = originalText.trim().length > 0
+  const hasText = originalText.trim().length > 0 || (isComposeMode && composeDraft.trim().length > 0)
   const suggestions = useMemo(() => getSuggestions(inputValue, customSuggestions), [inputValue, customSuggestions])
 
   useEffect(() => { setSuggestionIndex(0) }, [suggestions.length])
@@ -107,30 +112,52 @@ export function CommandBar(): JSX.Element {
     inputRef.current?.focus()
   }
 
-  const handleCommandClick = (cmd: Command): void => {
+  const runCommand = async (cmdText: string, textToProcess: string): Promise<void> => {
+    const command = detectCommand(cmdText)
+    const expandedInstruction = buildInstruction(cmdText, customCommands)
+    const historyForApi = buildApiHistory(messages, customCommands)
+
+    setActiveCommand(command)
+    setLoading(true)
+    addMessage({ role: 'user', content: cmdText })
+
+    try {
+      const result = await window.api.transformText(textToProcess, expandedInstruction, historyForApi)
+      addMessage({ role: 'assistant', content: result })
+    } catch {
+      setError('AI request failed. Check your API key.')
+    }
+  }
+
+  const confirmComposeDraft = (): string | null => {
+    if (!isComposeMode || !composeDraft.trim()) return null
+    const text = composeDraft.trim()
+    setText(text)
+    setComposeMode(false)
+    return text
+  }
+
+  const handleCommandClick = async (cmd: Command): Promise<void> => {
+    if (isLoading) return
+    // In compose mode with draft: auto-confirm + run immediately
+    if (isComposeMode && composeDraft.trim()) {
+      const text = confirmComposeDraft()!
+      await runCommand(cmd, text)
+      return
+    }
     setInputValue(cmd + ' ')
     inputRef.current?.focus()
   }
 
   const handleSubmit = async (): Promise<void> => {
     const trimmed = inputValue.trim()
-    if (!trimmed || isLoading || !hasText) return
+    const textToProcess = isComposeMode && composeDraft.trim() ? composeDraft.trim() : originalText
+    if (!trimmed || isLoading || !textToProcess) return
 
-    const command = detectCommand(trimmed)
-    const expandedInstruction = buildInstruction(trimmed, customCommands)
-    const historyForApi = buildApiHistory(messages, customCommands)
+    if (isComposeMode && composeDraft.trim()) confirmComposeDraft()
 
-    setActiveCommand(command)
-    setLoading(true)
     setInputValue('')
-    addMessage({ role: 'user', content: trimmed })
-
-    try {
-      const result = await window.api.transformText(originalText, expandedInstruction, historyForApi)
-      addMessage({ role: 'assistant', content: result })
-    } catch {
-      setError('AI request failed. Check your API key.')
-    }
+    await runCommand(trimmed, textToProcess)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>): void => {
@@ -207,7 +234,7 @@ export function CommandBar(): JSX.Element {
             {customCommands.map((cc) => (
               <button
                 key={cc.id}
-                onClick={() => { setInputValue(cc.value + ' '); inputRef.current?.focus() }}
+                onClick={() => handleCommandClick(cc.value as Command)}
                 disabled={isLoading || !hasText}
                 className="px-3 py-1 rounded-full text-xs font-mono font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-white/5 text-violet-400 hover:bg-white/10 hover:text-violet-300"
               >
@@ -252,6 +279,14 @@ export function CommandBar(): JSX.Element {
           </div>
         )}
 
+        <MicButton
+          compact
+          disabled={isLoading}
+          onTranscript={(text) => {
+            setInputValue((prev) => prev ? prev + ' ' + text : text)
+            inputRef.current?.focus()
+          }}
+        />
         <input
           ref={inputRef}
           value={inputValue}

@@ -9,6 +9,8 @@ interface OverlayState {
   isLoading: boolean
   error: string | null
   customCommands: CustomCommand[]
+  isComposeMode: boolean
+  composeDraft: string
 
   setText: (text: string) => void
   addMessage: (msg: ChatMessage) => void
@@ -18,6 +20,8 @@ interface OverlayState {
   setLoading: (loading: boolean) => void
   setError: (error: string | null) => void
   reset: () => void
+  setComposeMode: (v: boolean) => void
+  setComposeDraft: (text: string) => void
 
   setCustomCommands: (commands: CustomCommand[]) => void
   addOrUpdateCustomCommand: (cmd: CustomCommand) => void
@@ -32,6 +36,8 @@ export const useOverlayStore = create<OverlayState>((set) => ({
   isLoading: false,
   error: null,
   customCommands: [],
+  isComposeMode: false,
+  composeDraft: '',
 
   setText: (text) =>
     set({ originalText: text, messages: [], currentResult: null, error: null, activeCommand: null }),
@@ -59,7 +65,10 @@ export const useOverlayStore = create<OverlayState>((set) => ({
   setError: (error) => set({ error, isLoading: false }),
 
   reset: () =>
-    set({ originalText: '', messages: [], currentResult: null, activeCommand: null, isLoading: false, error: null }),
+    set({ originalText: '', messages: [], currentResult: null, activeCommand: null, isLoading: false, error: null, isComposeMode: false, composeDraft: '' }),
+
+  setComposeMode: (isComposeMode) => set({ isComposeMode }),
+  setComposeDraft: (composeDraft) => set({ composeDraft }),
 
   setCustomCommands: (customCommands) => set({ customCommands }),
   addOrUpdateCustomCommand: (cmd) =>
