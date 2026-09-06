@@ -10,7 +10,7 @@ copy‑pasting between windows.
 
 `/tone pro` applied to a message, then injected back into the chat box:
 
-https://github.com/melchimaelran/flow-text-ai/raw/main/docs/demo.mp4
+<video src="https://raw.githubusercontent.com/melchimaelran/flow-text-ai/main/docs/demo.mp4" controls muted playsinline width="720"></video>
 
 ## Features
 
