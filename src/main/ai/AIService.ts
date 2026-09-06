@@ -21,7 +21,8 @@ ${originalText}
 """`
 
     const response = await this.client.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+      model: 'openai/gpt-oss-120b',
+      reasoning_effort: 'low',
       messages: [
         { role: 'system', content: systemPrompt },
         ...history.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),

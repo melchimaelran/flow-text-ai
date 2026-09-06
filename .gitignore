@@ -11,6 +11,9 @@ dist-electron
 logs
 *.log
 
+# TypeScript incremental build info
+*.tsbuildinfo
+
 # OS
 .DS_Store
 Thumbs.db
