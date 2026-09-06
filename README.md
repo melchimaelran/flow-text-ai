@@ -6,6 +6,12 @@ Press a global hotkey from **any** application, capture the current text, transf
 it with an LLM, and inject the result straight back where you were typing — no
 copy‑pasting between windows.
 
+## Demo
+
+`/tone pro` applied to a message, then injected back into the chat box:
+
+https://github.com/melchimaelran/flow-text-ai/raw/main/docs/demo.mp4
+
 ## Features
 
 - **Global hotkey overlay** — `Ctrl+Shift+Space` opens a floating command bar over
